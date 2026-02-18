@@ -1,0 +1,318 @@
+// PLAYTRACK SETUP AND GETTING STARTED GUIDE
+// ==========================================
+
+TARGET: This file documents complete setup for PlayTrack Flutter application
+
+STEP 1: PREREQUISITES
+======================
+- Flutter SDK: v3.10.7 or higher
+- Dart SDK: 3.10.7+ (comes with Flutter)
+- Android Studio OR Xcode for device emulation
+- Git for version control
+- Firebase project (free tier works fine)
+
+STEP 2: ENVIRONMENT SETUP
+==========================
+
+On Windows (PowerShell):
+1. Download Flutter from: https://flutter.dev/docs/get-started/install/windows
+2. Extract to: C:\flutter
+3. Add to PATH: C:\flutter\bin
+4. Run: flutter doctor
+5. Accept Android licenses: flutter doctor --android-licenses
+
+On macOS:
+1. brew install flutter
+2. flutter doctor
+3. Xcode: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+
+STEP 3: FIREBASE PROJECT SETUP
+================================
+
+1. Visit: https://console.firebase.google.com
+2. Create new project "PlayTrack"
+3. Accept default settings
+4. Wait for project creation
+
+5. Enable Authentication:
+   - Go to: Authentication > Sign-in method
+   - Enable: Email/Password
+   - Click Save
+
+6. Create Firestore Database:
+   - Go to: Firestore Database
+   - Create database
+   - Start in: Production mode
+   - Region: US (us-central1 recommended)
+   - Wait for initialization
+
+STEP 4: CONNECT FLUTTER TO FIREBASE
+====================================
+
+In project directory (playtrack/):
+
+1. Install FlutterFire CLI:
+   flutter pub global activate flutterfire_cli
+
+2. Configure project:
+   flutterfire configure
+
+3. Follow prompts:
+   - Select platforms: Android, iOS (or as needed)
+   - Select your Firebase project
+   - Answer Yes to create apps
+   - Wait for configuration
+
+4. Verify firebase_options.dart created:
+   ls lib/firebase_options.dart
+
+STEP 5: CLONE AND SETUP PROJECT
+=================================
+
+git clone <repository-url>
+cd playtrack
+flutter pub get
+
+STEP 6: UPDATE FIREBASE RULES
+==============================
+
+In Firebase Console:
+1. Go to: Firestore Database > Rules
+2. Replace entire rules with:
+
+------- BEGIN RULES -------
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only read/write their own documents
+    match /users/{uid} {
+      allow read, write: if request.auth.uid == uid;
+    }
+    
+    // Public read for authenticated users
+    match /tournaments/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    match /teams/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    match /matches/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    match /players/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    match /registrations/{document=**} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+                               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}
+------- END RULES -------
+
+3. Click: Publish
+
+STEP 7: CREATE TEST USERS
+==========================
+
+In Firebase Console > Authentication:
+
+1. Create Regular User:
+   - Email: user@example.com
+   - Password: testuser123
+
+2. Create Admin User:
+   - Email: admin@example.com
+   - Password: testadmin123
+
+3. Add admin role to admin user in Firestore:
+   - Go to: Firestore Database > Collection "users"
+   - Create document with ID: (admin user's UID)
+   - Add fields:
+     {
+       "email": "admin@example.com",
+       "name": "Test Admin",
+       "role": "admin",
+       "createdAt": (current timestamp),
+       "isActive": true
+     }
+
+STEP 8: RUN APPLICATION
+========================
+
+flutter run
+
+OPTIONAL: Initialize Sample Data:
+- Log in with admin account
+- In main.dart, you can call: SampleData.initializeAll()
+- This creates sample tournaments, teams, players, matches
+
+STEP 9: USER FLOW TESTING
+===========================
+
+Test Flow 1: Fresh User
+1. Tap "Sign Up"
+2. Enter: Name, Email, Password
+3. Click "Create Account"
+4. Navigate to Home (should show empty tournaments initially)
+5. Tap "Live Scores" (empty)
+6. Tap "Leaderboard" (empty)
+
+Test Flow 2: Admin Features
+1. Click "Admin Login"
+2. Enter: admin@example.com, testadmin123
+3. Should see Admin Dashboard
+4. Create Tournament:
+   - Tap "Create Tournament"
+   - Enter name, location, sport
+   - Click "Create"
+5. Add Team:
+   - Tap "Add Team"
+   - Enter team name, coach
+   - Click "Add"
+6. Create Match:
+   - Tap "Create Match"
+   - Select teams, time, venue
+   - Click "Create"
+7. Update Score:
+   - Navigate to Match
+   - Click "Update Score"
+   - Enter team scores
+   - Click "Update"
+
+TEST CHECKLIST:
+- [ ] Firebase initialization successful
+- [ ] Authentication working (sign up/sign in)
+- [ ] Firestore documents created
+- [ ] Real-time updates working
+- [ ] Admin dashboard accessible
+- [ ] Tournament creation working
+- [ ] Score updates syncing
+- [ ] Leaderboard updating
+- [ ] Player stats displaying
+
+DEBUGGING TIPS:
+================
+
+1. Enable verbose logging:
+   flutter run -v
+
+2. Watch Firestore operations:
+   - Open Firebase Console in browser
+   - Navigate to: Firestore Database > Collection
+   - Watch documents update in real-time
+
+3. Check auth state:
+   - Add debug prints in main.dart
+   - Check Android logcat or iOS console
+
+4. Network issues:
+   - Use Chrome DevTools: flutter pub global run devtools
+   - Check network tab for Firestore calls
+
+5. Hot reload issues:
+   - Press R: Hot reload
+   - Press Shift+R: Hot restart
+   - Or: flutter clean && flutter run
+
+DEPLOYMENT:
+===========
+
+Android Release Build:
+  flutter build apk --release
+  Output: build/app/outputs/flutter-apk/app-release.apk
+
+iOS Release Build:
+  flutter build ios --release
+  Open ios/Runner.xcworkspace in Xcode for further signing
+
+Android App Bundle (for Play Store):
+  flutter build appbundle --release
+  Output: build/app/outputs/bundle/release/app-release.aab
+
+IMPORTANT NOTES:
+================
+
+1. Always keep firebase_options.dart in version control
+2. Never commit .env or config files with real credentials
+3. Use production Firebase rules before deploying
+4. Test security rules thoroughly
+5. Monitor Firestore read/write quotas
+6. Set up Cloud Functions for backend operations if needed
+7. Enable App Check for production security
+
+ADDITIONAL RESOURCES:
+====================
+
+- Flutter Docs: https://flutter.dev/docs
+- Firebase Docs: https://firebase.google.com/docs
+- Riverpod Docs: https://riverpod.dev
+- Material Design: https://material.io/design
+
+SUPPORT:
+========
+
+For issues:
+1. Check flutter doctor output
+2. Review error messages carefully
+3. Check Firebase console logs
+4. Try: flutter clean && flutter pub get && flutter run
+5. Search Stack Overflow for specific errors
+6. Check official documentation
+
+DEVELOPMENT BEST PRACTICES:
+===========================
+
+1. Use meaningful variable names
+2. Add comments for complex logic
+3. Follow null safety guidelines
+4. Test on multiple devices
+5. Use git for version control
+6. Write reusable widgets
+7. Keep services small and focused
+8. Use providers for state management
+9. Handle errors gracefully
+10. Test error scenarios
+
+PERFORMANCE OPTIMIZATION:
+=========================
+
+1. Use const constructors where possible
+2. Avoid rebuilding entire trees
+3. Use RepaintBoundary for expensive widgets
+4. Implement image caching
+5. Use ListView.builder for long lists
+6. Minimize Firestore reads/writes
+7. Cache frequently accessed data
+8. Use Isolates for heavy computations
+
+SECURITY CHECKLIST:
+===================
+
+- [ ] Firebase rules correctly configured
+- [ ] No sensitive data in client code
+- [ ] HTTPS only for API calls
+- [ ] User input validated
+- [ ] Error messages don't leak info
+- [ ] Admin operations require auth
+- [ ] Rate limiting configured
+- [ ] Testing with real-world data
+- [ ] Security rules tested
+- [ ] Dependency vulnerabilities checked
+
+Expected project completion: 2-3 hours setup + testing
+Happy coding! 🚀
